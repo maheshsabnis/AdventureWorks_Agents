@@ -1,0 +1,78 @@
+<section class="query-result" aria-label="@($"Results from {Result.Tool}")">
+    <header class="result-header">
+        <h3>@Result.Tool</h3>
+        <span class="badge">@Result.Count row(s)</span>
+    </header>
+    <p class="muted">@Result.Message</p>
+    @if (Result.Data.Count == 0)
+    {
+        <p>No rows were returned by this query.</p>
+    }
+    else
+    {
+        <div class="table-scroll" tabindex="0" role="region" aria-label="@($"Scrollable table for {Result.Tool}")">
+            <table>
+                <caption>Database rows returned by @Result.Tool</caption>
+                <thead>
+                    <tr>
+                        @foreach (var column in _columns)
+                        {
+                            <th scope="col">@column</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Result.Data.Skip(_page * PageSize).Take(PageSize))
+                    {
+                        <tr>
+                            @foreach (var column in _columns)
+                            {
+                                <td>@(row.TryGetValue(column, out var value) ? Format(value) : "—")</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <nav class="pagination" aria-label="@($"Pagination for {Result.Tool}")">
+            <button type="button" class="secondary" disabled="@(_page == 0)" @onclick="Previous">Previous</button>
+            <span>Page @(_page + 1) of @PageCount · @Result.Data.Count returned rows</span>
+            <button type="button" class="secondary" disabled="@(_page + 1 >= PageCount)" @onclick="Next">Next</button>
+        </nav>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public AgentQueryResult Result { get; set; } = new();
+
+    private const int PageSize = 25;
+    private AgentQueryResult? _previousResult;
+    private string[] _columns = [];
+    private int _page;
+    private int PageCount => Math.Max(1, (Result.Data.Count + PageSize - 1) / PageSize);
+
+    // Build the column headings and return to the first page when a new result arrives.
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(Result, _previousResult))
+        {
+            _columns = Result.Data.SelectMany(row => row.Keys).Distinct(StringComparer.Ordinal).ToArray();
+            _page = 0;
+            _previousResult = Result;
+        }
+    }
+
+    // Move back one page without going before the first page.
+    private void Previous() => _page = Math.Max(0, _page - 1);
+    // Move forward one page without going past the last page.
+    private void Next() => _page = Math.Min(PageCount - 1, _page + 1);
+
+    // Convert a JSON cell value to display text while keeping nulls and numbers recognizable.
+    private static string Format(JsonElement value) => value.ValueKind switch
+    {
+        JsonValueKind.Null or JsonValueKind.Undefined => "null",
+        JsonValueKind.String => value.GetString() ?? string.Empty,
+        _ => value.GetRawText()
+    };
+}

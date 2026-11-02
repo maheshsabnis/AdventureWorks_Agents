@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AdventureWorksClient/AdventureWorksClient.csproj" />
+  <Project Path="AdventureWorksTool/AdventureWorksTool.csproj" />
+</Solution>

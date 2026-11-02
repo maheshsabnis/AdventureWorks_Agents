@@ -1,0 +1,187 @@
+@implements IDisposable
+@inject AgentApiClient AgentApi
+
+<header class="app-header">
+    <div>
+        <p class="eyebrow">MS Tech AdventureWorks · Read-only data assistant</p>
+        <h1>Ask your AdventureWorks agent</h1>
+        <p>Explore sales, products, purchasing, and people using natural language.</p>
+    </div>
+    <button type="button" class="secondary" disabled="@(_busy || _messages.Count == 0)" @onclick="Clear">Clear chat</button>
+</header>
+
+<p class="notice">The agent remembers this chat and asks for missing details before running a query. You can answer with “Northwest” or “all available dates.” Clear chat or reload to start over. Tables show actual database results.</p>
+
+<section class="suggestions" aria-label="Example prompts">
+    @foreach (var example in Examples)
+    {
+        <button type="button" class="secondary" disabled="@_busy" @onclick="() => _prompt = example">@example</button>
+    }
+</section>
+
+<section class="conversation" aria-label="Conversation" aria-busy="@_busy">
+    @if (_messages.Count == 0)
+    {
+        <div class="empty-state">
+            <h2>What would you like to explore?</h2>
+            <p>Choose an example or enter a question. The agent selects the available query tools and returns their results.</p>
+        </div>
+    }
+    @foreach (var message in _messages)
+    {
+        <article class="chat-message @(message.IsUser ? "user-message" : "agent-message")" @key="message">
+            <h2>@(message.IsUser ? "You" : "AdventureWorks Agent")</h2>
+            <p class="message-text">@message.Text</p>
+            @if (message.Results is not null)
+            {
+                @foreach (var result in message.Results)
+                {
+                    <QueryResultTable Result="result" @key="result" />
+                }
+                @if (message.Results.Count == 0)
+                {
+                    <p class="muted">No query data in this reply. If the agent asked a question, type your answer below.</p>
+                }
+            }
+        </article>
+    }
+</section>
+
+<p class="request-status" role="status" aria-live="polite">@_status</p>
+@if (!string.IsNullOrEmpty(_error))
+{
+    <p class="error" role="alert">@_error</p>
+}
+
+<form class="composer" @onsubmit="SendAsync" @onsubmit:preventDefault>
+    <label for="agent-prompt">Your question or reply</label>
+    <textarea id="agent-prompt" @bind="_prompt" @bind:event="oninput" maxlength="8000" rows="4"
+              disabled="@_busy" placeholder="Ask about sales, or answer the agent's question…"
+              aria-describedby="prompt-help"></textarea>
+    <div class="composer-actions">
+        <span id="prompt-help" class="muted">@_prompt.Length / 8,000 characters · Read-only queries</span>
+        <div>
+            @if (_busy)
+            {
+                <button type="button" class="secondary" @onclick="Cancel">Cancel request</button>
+            }
+            <button type="submit" disabled="@(_busy || string.IsNullOrWhiteSpace(_prompt))">@(_busy ? "Working…" : "Send to agent")</button>
+        </div>
+    </div>
+</form>
+
+@code {
+    private static readonly string[] Examples =
+    [
+        "Show sales details.",
+        "Show revenue by region.",
+        "Show revenue for Northwest using all available dates."
+    ];
+
+    private readonly List<ChatEntry> _messages = [];
+    private readonly List<AgentHistoryMessage> _history = [];
+    private string _prompt = string.Empty;
+    private string? _error;
+    private string? _status;
+    private bool _busy;
+    private bool _disposed;
+    private CancellationTokenSource? _requestCancellation;
+
+    // Validate the prompt, call the API, and add completed exchanges to the chat history.
+    // Failed or canceled requests keep the prompt available for retry without adding it to history.
+    private async Task SendAsync()
+    {
+        if (_busy || _disposed)
+        {
+            return;
+        }
+
+        var prompt = _prompt.Trim();
+        if (prompt.Length is 0 or > 8000)
+        {
+            _error = "Enter a prompt between 1 and 8,000 characters.";
+            return;
+        }
+
+        if (_history.Count > 20 || _history.Sum(message => message.Text.Length) > 40000 ||
+            _history.Any(message => message.Text.Length > 8000))
+        {
+            _error = "This chat has reached its history limit. Select Clear chat to start a new conversation.";
+            return;
+        }
+
+        _error = null;
+        _busy = true;
+        _status = "The agent is checking your request and any missing details…";
+        _messages.Add(new ChatEntry(true, prompt, null));
+        using var cancellation = new CancellationTokenSource();
+        _requestCancellation = cancellation;
+
+        try
+        {
+            var response = await AgentApi.AskAsync(prompt, _history, cancellation.Token);
+            if (!_disposed)
+            {
+                _history.Add(new AgentHistoryMessage { Role = "user", Text = prompt });
+                _history.Add(new AgentHistoryMessage { Role = "assistant", Text = response.Message });
+                _messages.Add(new ChatEntry(false, response.Message, response.Results));
+                _prompt = string.Empty;
+                _status = "Agent reply received. Answer any clarification question below, or ask another question.";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            if (!_disposed)
+            {
+                _status = cancellation.IsCancellationRequested
+                    ? "Request canceled. Your prompt is available to edit or retry."
+                    : "The request timed out. Your prompt is available to retry.";
+            }
+        }
+        catch (HttpRequestException exception)
+        {
+            if (!_disposed)
+            {
+                _error = exception.StatusCode.HasValue
+                    ? exception.Message
+                    : "Cannot reach the API. Check that it is running, the HTTPS certificate is trusted, and the API URL and CORS origin are configured correctly.";
+                _status = "Request failed. Your prompt is available to retry.";
+            }
+        }
+        catch (JsonException)
+        {
+            if (!_disposed)
+            {
+                _error = "The API returned an invalid response. Expected an agent message and a results array.";
+                _status = "Request failed.";
+            }
+        }
+        finally
+        {
+            _requestCancellation = null;
+            _busy = false;
+        }
+    }
+
+    // Ask the current HTTP request to stop when the user clicks Cancel request.
+    private void Cancel() => _requestCancellation?.Cancel();
+
+    // Remove the displayed messages, remembered conversation, and current input.
+    private void Clear()
+    {
+        _messages.Clear();
+        _history.Clear();
+        _prompt = string.Empty;
+        _error = null;
+        _status = null;
+    }
+
+    // Cancel pending work and prevent reply updates after this component is removed.
+    public void Dispose()
+    {
+        _disposed = true;
+        _requestCancellation?.Cancel();
+    }
+
+    private sealed record ChatEntry(bool IsUser, string Text, List<AgentQueryResult>? Results);
+}

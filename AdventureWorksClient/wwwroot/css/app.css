@@ -1,0 +1,44 @@
+:root { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #17243b; background: #f3f6fb; line-height: 1.5; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+.app-shell { max-width: 1180px; margin: auto; padding: 2rem 1.25rem 3rem; }
+.app-header, .result-header, .composer-actions, .pagination { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+h1 { font-size: clamp(1.6rem, 4vw, 2.3rem); margin: .25rem 0; }
+h2 { font-size: 1.1rem; margin-top: 0; }
+h3 { font-size: 1rem; margin: 0; overflow-wrap: anywhere; }
+.eyebrow { color: #2857a4; font-weight: 650; margin: 0; }
+.muted { color: #536077; font-size: .9rem; }
+.notice { border-left: 4px solid #4076bf; padding: .8rem 1rem; background: #e9f0fc; }
+button, textarea { font: inherit; }
+button { border: 1px solid #2154a0; border-radius: .5rem; background: #2154a0; color: white; padding: .6rem 1rem; cursor: pointer; }
+button:hover:not(:disabled) { background: #173d79; color: white; }
+button.secondary { background: white; color: #2154a0; border-color: #b8c8e1; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+button:focus-visible, textarea:focus-visible, .table-scroll:focus-visible, a:focus-visible { outline: 3px solid #bd6e00; outline-offset: 3px; }
+.suggestions { display: flex; gap: .6rem; flex-wrap: wrap; margin: 1.4rem 0; }
+.suggestions button { text-align: left; font-size: .9rem; }
+.conversation { display: grid; gap: 1rem; }
+.empty-state { text-align: center; padding: 2.5rem 1rem; color: #536077; }
+.chat-message { min-width: 0; padding: 1.2rem; background: white; border: 1px solid #d8e1ef; border-radius: .8rem; }
+.user-message { background: #eaf1ff; margin-left: min(10%, 5rem); }
+.message-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.query-result { margin-top: 1rem; border-top: 1px solid #d8e1ef; padding-top: 1rem; }
+.badge { white-space: nowrap; border-radius: 1rem; padding: .15rem .65rem; background: #e9f0fc; font-size: .85rem; }
+.table-scroll { overflow: auto; max-height: 560px; border: 1px solid #d8e1ef; border-radius: .4rem; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+caption { text-align: left; padding: .6rem; color: #536077; }
+th, td { padding: .65rem .8rem; border-bottom: 1px solid #e4e9f2; text-align: left; vertical-align: top; min-width: 100px; max-width: 420px; overflow-wrap: anywhere; }
+th { background: #edf2fa; position: sticky; top: 0; }
+tbody tr:nth-child(even) { background: #f8faff; }
+.pagination { padding-top: .75rem; font-size: .85rem; }
+.request-status { color: #2857a4; }
+.error { color: #861b25; background: #fff0f1; padding: 1rem; border: 1px solid #e5afb5; border-radius: .5rem; }
+.composer { margin-top: 1rem; padding: 1.2rem; background: white; border: 1px solid #d8e1ef; border-radius: .8rem; }
+.composer label { display: block; font-weight: 650; margin-bottom: .5rem; }
+textarea { width: 100%; resize: vertical; min-height: 100px; padding: .75rem; border: 1px solid #aebdd3; border-radius: .4rem; }
+.composer-actions { margin-top: .75rem; flex-wrap: wrap; }
+.composer-actions > div { display: flex; gap: .5rem; }
+.startup { padding: 2rem; text-align: center; }
+#blazor-error-ui { display: none; position: fixed; bottom: 0; width: 100%; background: #fff2c2; padding: 1rem; z-index: 1000; }
+#blazor-error-ui .dismiss { margin-left: 1rem; }
+@media (max-width: 600px) { .app-header { align-items: flex-start; flex-direction: column; } .app-shell { padding: 1rem .75rem; } .user-message { margin-left: 1rem; } .pagination { flex-wrap: wrap; } .chat-message { padding: .85rem; } }

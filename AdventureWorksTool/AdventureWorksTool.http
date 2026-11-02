@@ -1,0 +1,45 @@
+@AdventureWorksTool_HostAddress = http://localhost:5225
+
+# Configure AzureOpenAI:Endpoint, AzureOpenAI:ApiKey, and AzureOpenAI:DeploymentName.
+# Supply the API key through environment variables or user secrets, not source control.
+# Environment variable names: AzureOpenAI__Endpoint, AzureOpenAI__ApiKey, AzureOpenAI__DeploymentName.
+# The deployment must support chat completions and function calling.
+# Response includes an agent message and results with tool, message, count, and actual data rows.
+# Read results[0].data for the rows from the first successful query.
+# Restrict access/authenticate callers before exposing this endpoint publicly.
+
+POST {{AdventureWorksTool_HostAddress}}/api/agent
+Content-Type: application/json
+Accept: application/json
+
+{
+  "prompt": "Run the top 10 products by sales query for all available dates."
+}
+
+###
+
+# First turn: the agent should ask which region to use.
+POST {{AdventureWorksTool_HostAddress}}/api/agent
+Content-Type: application/json
+
+{
+  "prompt": "Show revenue by region."
+}
+
+###
+
+# Illustrative final turn. In a real client, use the actual previous messages.
+POST {{AdventureWorksTool_HostAddress}}/api/agent
+Content-Type: application/json
+
+{
+  "prompt": "All available dates",
+  "history": [
+    { "role": "user", "text": "Show revenue by region." },
+    { "role": "assistant", "text": "Which territory, country, or group, or all territories?" },
+    { "role": "user", "text": "Northwest" },
+    { "role": "assistant", "text": "Which date range, or all available dates?" }
+  ]
+}
+
+###
